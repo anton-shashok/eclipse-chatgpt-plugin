@@ -19,10 +19,9 @@ import com.github.gradusnikov.eclipse.assistai.mcp.InMemoryTransport.TransportPa
 import io.modelcontextprotocol.client.McpClient;
 import io.modelcontextprotocol.client.McpSyncClient;
 import io.modelcontextprotocol.server.McpServer;
-import io.modelcontextprotocol.server.McpServerFeatures;
-import io.modelcontextprotocol.server.McpServerFeatures.SyncToolRegistration;
+import io.modelcontextprotocol.server.McpServerFeatures.SyncToolSpecification;
 import io.modelcontextprotocol.server.McpSyncServer;
-import io.modelcontextprotocol.spec.ClientMcpTransport;
+import io.modelcontextprotocol.spec.McpClientTransport;
 import io.modelcontextprotocol.spec.McpSchema;
 import io.modelcontextprotocol.spec.McpSchema.CallToolResult;
 import io.modelcontextprotocol.spec.McpSchema.Tool;
@@ -109,7 +108,7 @@ public class McpClientServerFactory
      */
     private McpSyncClient buildClient( McpSchema.Implementation info, TransportPair transports )
     {
-        ClientMcpTransport clientTransport = transports.getClientTransport();
+    	McpClientTransport clientTransport = transports.getClientTransport();
         McpSyncClient client = McpClient.sync( clientTransport ).clientInfo( info ).build();
         return client;
     }
@@ -122,7 +121,7 @@ public class McpClientServerFactory
      * @param toolRegistrations List of tool registrations to be exposed by the server
      * @return A synchronized MCP server
      */
-    private McpSyncServer buildServer( McpSchema.Implementation info, TransportPair transports, List<SyncToolRegistration> toolRegistrations )
+    private McpSyncServer buildServer( McpSchema.Implementation info, TransportPair transports, List<SyncToolSpecification> toolSpecifications )
     {
         McpSchema.ServerCapabilities capabilities = McpSchema.ServerCapabilities.builder()
                 .logging()
@@ -131,10 +130,10 @@ public class McpClientServerFactory
                 .tools( true )
                 .build();
 
-        McpSyncServer server = McpServer.sync( transports.getServerTransport() )
+        McpSyncServer server = McpServer.sync( transports.getServerTransportProvider() )
                                         .serverInfo( info )
                                         .capabilities( capabilities )
-                                        .tools( toolRegistrations )
+                                        .tools( toolSpecifications )
                                         .build();
         return server;
     }
@@ -147,12 +146,12 @@ public class McpClientServerFactory
      * @param tools List of tool definitions
      * @return List of tool registrations
      */
-    private List<SyncToolRegistration> createToolRegistrations( ToolExecutor executor, List<McpSchema.Tool> tools )
+    private List<SyncToolSpecification> createToolRegistrations( ToolExecutor executor, List<McpSchema.Tool> tools )
     {
         var toolRegistrations = tools.stream().map( tool -> {
-            return new McpServerFeatures.SyncToolRegistration( tool, args -> {
-                return executeCallTool( executor, tool, args );
-            } );
+        	return SyncToolSpecification.builder().tool(tool).callHandler((schema, request) -> {
+                return executeCallTool( executor, tool, request.arguments() );
+            }).build();
         } ).collect( Collectors.toList() );
         return toolRegistrations;
     }
@@ -242,8 +241,8 @@ public class McpClientServerFactory
                         }
                     }
                 }
-                McpSchema.JsonSchema schema = new McpSchema.JsonSchema( toolAnnotation.type(), properties, required, false );
-                McpSchema.Tool tool = new McpSchema.Tool( toolAnnotation.name(), toolAnnotation.description(), schema );
+                McpSchema.JsonSchema schema = new McpSchema.JsonSchema( toolAnnotation.type(), properties, required, false, null, null );
+                McpSchema.Tool tool = McpSchema.Tool.builder().name(toolAnnotation.name()).description(toolAnnotation.description()).inputSchema(schema).build();
                 tools.add( tool );
             }
         }

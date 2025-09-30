@@ -9,6 +9,7 @@ import com.github.gradusnikov.eclipse.assistai.mcp.Tool;
 import com.github.gradusnikov.eclipse.assistai.mcp.ToolParam;
 import com.github.gradusnikov.eclipse.assistai.mcp.services.CodeAnalysisService;
 import com.github.gradusnikov.eclipse.assistai.mcp.services.CodeEditingService;
+import com.github.gradusnikov.eclipse.assistai.mcp.services.CodeSearchService;
 import com.github.gradusnikov.eclipse.assistai.mcp.services.ConsoleService;
 import com.github.gradusnikov.eclipse.assistai.mcp.services.EditorService;
 import com.github.gradusnikov.eclipse.assistai.mcp.services.JavaDocService;
@@ -44,6 +45,9 @@ public class EclipseIntegrationsMcpServer
     
     @Inject
     private CodeEditingService codeEditingService;
+    
+    @Inject
+    private CodeSearchService codeSearchService; 
     
     @Inject
     private UnitTestService unitTestService;
@@ -87,6 +91,12 @@ public class EclipseIntegrationsMcpServer
     {
         return projectService.getProjectLayout( projectName );
     }
+    @Tool(name="getClassHierarchy", description="Retrieves the type hierarchy for a specified class in the codebase.", type="object")
+    public String getClassHierarchy(
+            @ToolParam(name="fullyQualifiedClassName", description="The fully qualified name of the class containing the method", required=true) String fullyQualifiedClassName) 
+    {
+        return codeAnalysisService.getClassHierarchy( fullyQualifiedClassName );
+    }    
     @Tool(name="getMethodCallHierarchy", description="Retrieves the call hierarchy (callers) for a specified method to understand how it's used in the codebase.", type="object")
     public String getMethodCallHierarchy(
             @ToolParam(name="fullyQualifiedClassName", description="The fully qualified name of the class containing the method", required=true) String fullyQualifiedClassName,
@@ -136,6 +146,17 @@ public class EclipseIntegrationsMcpServer
     {
         return consoleService.getConsoleOutput( consoleName, Optional.ofNullable( maxLines ).map( Integer::parseInt ).orElse( 0 ), includeAllConsoles );
     }
+    
+    @Tool(name="fileTextSearch", description="Search workspace for files containing text.", type="object")
+    public String fileTextSearch(
+            @ToolParam(name="searchText", description="Text pattern for search in file", required=true) String searchText,
+            @ToolParam(name="isRegEx", description="Is text pattern regex or plain text", required=true) String isRegEx,
+            @ToolParam(name="isCaseSensitive", description="Is text pattern case sensitive (default: false)", required=false) String isCaseSensitive,
+            @ToolParam(name="fileName", description="File name pattern (default: *)", required=false) String fileName) 
+    {
+        return codeSearchService.fileTextSearch(searchText, Boolean.parseBoolean(isRegEx), Boolean.parseBoolean(isRegEx), fileName);
+    }
+    
     
     // Unit Test Service Tools
     

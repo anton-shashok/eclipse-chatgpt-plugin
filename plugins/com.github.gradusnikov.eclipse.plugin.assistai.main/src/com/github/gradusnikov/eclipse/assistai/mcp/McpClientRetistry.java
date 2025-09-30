@@ -30,7 +30,7 @@ import io.modelcontextprotocol.client.McpSyncClient;
 import io.modelcontextprotocol.client.transport.ServerParameters;
 import io.modelcontextprotocol.client.transport.StdioClientTransport;
 import io.modelcontextprotocol.server.McpSyncServer;
-import io.modelcontextprotocol.spec.ClientMcpTransport;
+import io.modelcontextprotocol.spec.McpClientTransport;
 import jakarta.annotation.PostConstruct;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
@@ -164,8 +164,9 @@ public class McpClientRetistry
                     .env(resolvedEnvVars)
                     .build();
     
-            ClientMcpTransport mcpTransport = new StdioClientTransport(stdioParameters);
+            McpClientTransport mcpTransport = new StdioClientTransport(stdioParameters);
             McpSyncClient client = McpClient.sync(mcpTransport).build();
+            client.initialize();
             addClient(userMcp.name(), client);
         }
     }

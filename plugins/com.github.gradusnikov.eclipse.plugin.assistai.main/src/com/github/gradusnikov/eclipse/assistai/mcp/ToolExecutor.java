@@ -47,6 +47,11 @@ public class ToolExecutor
     {
         try
         {
+        	System.out.println(functions);
+        	System.out.println(method);
+        	System.out.println(Arrays.toString(args));
+        	System.out.println(args[0].getClass());
+        	System.out.println(args[1].getClass());
             return method.invoke( functions, args );
         }
         catch ( IllegalAccessException | IllegalArgumentException | InvocationTargetException e )

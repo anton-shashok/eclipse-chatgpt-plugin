@@ -25,6 +25,7 @@ import org.eclipse.jdt.core.IJavaModelMarker;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.IMethod;
 import org.eclipse.jdt.core.IType;
+import org.eclipse.jdt.core.ITypeHierarchy;
 import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.Signature;
@@ -45,6 +46,65 @@ public class CodeAnalysisService
     
     @Inject
     ILog logger;
+    
+    public String getClassHierarchy (String fullyQualifiedClassName)
+    {
+        StringBuilder result = new StringBuilder();
+        result.append("# Type Hierarchy for: ").append(fullyQualifiedClassName).append("\n\n");
+        try 
+        {
+            for (IJavaProject project : getAvailableJavaProjects()) 
+            {
+                IType type = project.findType(fullyQualifiedClassName);
+                if (type == null) 
+                {
+                    continue;
+                }
+                
+            	ITypeHierarchy hierarchy = type.newTypeHierarchy(new NullProgressMonitor());
+            	
+            	IType[] superclasses = hierarchy.getAllSuperclasses(type);
+            	
+            	if (superclasses.length > 0) {
+            		result.append("## Superclasses:\n");
+            		for (IType cls : superclasses) {
+            			result.append(cls.getFullyQualifiedName());
+            			result.append("\n");
+            		}
+            		result.append("\n");
+            	}
+
+            	IType[] subtypes = hierarchy.getAllSubtypes(type);
+            	
+            	if (subtypes.length > 0) {
+            		result.append("## Subtypes:\n");
+            		for (IType cls : subtypes) {
+            			result.append(cls.getFullyQualifiedName());
+            			result.append("\n");
+            		}
+            		result.append("\n");
+            	}
+
+            	IType[] interfaces = hierarchy.getAllInterfaces();
+            	
+            	if (interfaces.length > 0) {
+            		result.append("## Interfaces:\n");
+            		for (IType cls : interfaces) {
+            			result.append(cls.getFullyQualifiedName());
+            			result.append("\n");
+            		}
+            		result.append("\n");
+            	}
+            }
+            
+            return result.isEmpty() ? "empty" : result.toString();
+        }
+        catch (JavaModelException e) 
+        {
+            logger.error(e.getMessage(), e);
+            throw new RuntimeException( "Error retrieving call hierarchy: " + ExceptionUtils.getRootCauseMessage( e ) );
+        }
+    }
     
     /**
      * Retrieves the call hierarchy for a specified method.
