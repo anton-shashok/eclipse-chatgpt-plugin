@@ -11,6 +11,7 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -85,7 +86,7 @@ public class AnthropicStreamJavaHttpClient implements LanguageModelClient
         publisher.subscribe(subscriber);
     }
 
-    static ArrayNode clientToolsToJson(String clientName, McpSyncClient client) {
+    static List<Map<String, Object>> clientToolsToJson(String clientName, McpSyncClient client) {
         List<Map<String, Object>> tools = new ArrayList<>();
         
         for (var tool : client.listTools().tools()) {
@@ -114,10 +115,7 @@ public class AnthropicStreamJavaHttpClient implements LanguageModelClient
             toolObj.put("input_schema", inputSchema);
             tools.add(toolObj);
         }
-        
-        var objectMapper = new ObjectMapper();
-        var functionsJsonNode= objectMapper.valueToTree( tools );
-        return (ArrayNode) functionsJsonNode; 
+        return tools; 
     }
     
     private String getRequestBody(Conversation prompt, ModelApiDescriptor model)
@@ -128,13 +126,17 @@ public class AnthropicStreamJavaHttpClient implements LanguageModelClient
             var messages = new ArrayList<Map<String, Object>>();
 
             // System message should be placed in system key, not in messages array for Anthropic
-            String systemPrompt = preferenceStore.getString(Prompts.SYSTEM.preferenceName());
-            requestBody.put("system", systemPrompt);
+            requestBody.put("system", List.of(getSystemPrompt()));
 
             // Add all messages from prompt
             prompt.messages().stream()
                              .filter( Predicate.not(ChatMessage::isEmpty) )
                              .map(message -> toJsonPayload(message, model)).forEach(messages::add);
+            
+            // Add cache_control
+            @SuppressWarnings("unchecked")
+			List<Map<String, Object>> messageContent = (List<Map<String, Object>>) messages.getLast().get("content");
+            messageContent.getLast().put("cache_control", Map.of("type", "ephemeral"));
 
             // Add required fields for Anthropic API
             requestBody.put("model", model.modelName());
@@ -146,13 +148,16 @@ public class AnthropicStreamJavaHttpClient implements LanguageModelClient
             // Add tools if function calling is enabled
             if (model.functionCalling())
             {
-                ArrayNode tools = objectMapper.createArrayNode();
+            	List<Map<String, Object>> tools = new ArrayList<>();
                 for (var client : mcpClientRegistry.listEnabledveClients().entrySet())
                 {
                     tools.addAll(clientToolsToJson(client.getKey(), client.getValue()));
                 }
                 if (!tools.isEmpty())
                 {
+                	// Add cache_control
+                	tools.getLast().put("cache_control", Map.of("type", "ephemeral"));
+                	
                     requestBody.put("tools", tools);
                 }
             }
@@ -163,6 +168,14 @@ public class AnthropicStreamJavaHttpClient implements LanguageModelClient
         {
             throw new RuntimeException(e);
         }
+    }
+    
+    private Map<String, Object> getSystemPrompt() {
+    	String systemPrompt = preferenceStore.getString(Prompts.SYSTEM.preferenceName());
+    	return Map.of(
+    			"type", "text",
+    			"text", systemPrompt,
+    			"cache_control", Map.of("type", "ephemeral"));
     }
 
     private LinkedHashMap<String, Object> toJsonPayload(ChatMessage message, ModelApiDescriptor model)
@@ -242,7 +255,10 @@ public class AnthropicStreamJavaHttpClient implements LanguageModelClient
                 }
                 else
                 {
-                    userMessage.put("content", textContent);
+                	var textObject = new LinkedHashMap<String, String>();
+                    textObject.put("type", "text");
+                    textObject.put("text", textContent);
+                    userMessage.put("content", List.of(textObject));
                 }
             }
             return userMessage;

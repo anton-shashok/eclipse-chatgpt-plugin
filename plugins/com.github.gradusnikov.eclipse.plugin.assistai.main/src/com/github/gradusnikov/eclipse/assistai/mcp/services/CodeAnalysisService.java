@@ -64,40 +64,33 @@ public class CodeAnalysisService
             	ITypeHierarchy hierarchy = type.newTypeHierarchy(new NullProgressMonitor());
             	
             	IType[] superclasses = hierarchy.getAllSuperclasses(type);
-            	
-            	if (superclasses.length > 0) {
-            		result.append("## Superclasses:\n");
-            		for (IType cls : superclasses) {
-            			result.append(cls.getFullyQualifiedName());
-            			result.append("\n");
-            		}
-            		result.append("\n");
-            	}
-
-            	IType[] subtypes = hierarchy.getAllSubtypes(type);
-            	
-            	if (subtypes.length > 0) {
-            		result.append("## Subtypes:\n");
-            		for (IType cls : subtypes) {
-            			result.append(cls.getFullyQualifiedName());
-            			result.append("\n");
-            		}
-            		result.append("\n");
-            	}
-
-            	IType[] interfaces = hierarchy.getAllInterfaces();
-            	
-            	if (interfaces.length > 0) {
-            		result.append("## Interfaces:\n");
-            		for (IType cls : interfaces) {
-            			result.append(cls.getFullyQualifiedName());
-            			result.append("\n");
-            		}
-            		result.append("\n");
-            	}
+                if (superclasses.length > 0) {
+                	result.append("## Superclasses:\n");
+                    for (IType sc : superclasses) {
+                    	result.append(sc.getFullyQualifiedName()).append("\n");
+                    }
+                    result.append("\n");
+                }
+                
+                IType[] allInterfaces = hierarchy.getAllSuperInterfaces(type);
+                if (allInterfaces.length > 0) {
+                	result.append("## Interfaces:\n");
+                    for (IType iface : allInterfaces) {
+                    	result.append(iface.getFullyQualifiedName()).append("\n");
+                    }
+                    result.append("\n");
+                }
+                
+                IType[] subtypes = hierarchy.getSubtypes(type);
+                if (subtypes.length > 0) {
+                	result.append("## Direct Subtypes:\n");
+                    for (IType subtype : subtypes) {
+                    	result.append(subtype.getFullyQualifiedName()).append("\n");
+                    }
+                }
             }
             
-            return result.isEmpty() ? "empty" : result.toString();
+            return result.toString();
         }
         catch (JavaModelException e) 
         {
