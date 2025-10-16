@@ -35,7 +35,7 @@ public class MarkdownParser
     private static final String  TATT_CONTEXTEND                     = "<|ContextEnd|>";
 
     // LaTeX pattern definitions
-    private static final Pattern LATEX_INLINE_PATTERN                = Pattern.compile( "\\$(.*?)\\$|\\\\\\((.*?)\\\\\\)" );
+    private static final Pattern LATEX_INLINE_PATTERN                = Pattern.compile( "(?<=^|\\s)\\\\\\$([^$]*?)\\\\\\$(?=$|\\s)|\\\\\\((.*?)\\\\\\)" );
     private static final Pattern LATEX_MULTILINE_BLOCK_OPEN_PATTERN  = Pattern.compile( "^[ \\t]*(?:\\$\\$(?!.*\\$\\$)|\\\\\\[(?!.*\\\\\\])).*$" );
     private static final Pattern LATEX_SINGLELINE_BLOCK_OPEN_PATTERN = Pattern.compile( "^[ \\t]*(?:\\$\\$(?:.*\\$\\$)|\\\\\\[(?:.*\\\\\\])).*$" );
     private static final Pattern LATEX_BLOCK_CLOSE_PATTERN           = Pattern.compile( "^.*?(\\$\\$|\\\\\\])[ \\t]*$" );
@@ -601,7 +601,8 @@ public class MarkdownParser
      *         HTML spans with base64 encoded content
      */
     private static String convertLineToHtml(String line) {
-        return convertMarkdownLineToHtml(convertInLineLatexToHtml(convertInlineCodeToHtml(line)));
+        return convertMarkdownLineToHtml(convertInLineLatexToHtml(convertInlineCodeToHtml(Matcher.quoteReplacement(line))))
+        		.replace("\\$", "$").replace("\\\\", "\\");
     }
 
     /**
@@ -634,7 +635,7 @@ public class MarkdownParser
                 String content = match.group(i);
                 if (content != null) 
                 {
-                    content = StringEscapeUtils.unescapeHtml4( content );
+                    content = StringEscapeUtils.unescapeHtml4( content.replace("\\$", "$").replace("\\\\", "\\") );
                     String base64Content = Base64.getEncoder().encodeToString(content.getBytes());
                     return "<span class=\"inline-latex\">" + base64Content + "</span>";
                 }
